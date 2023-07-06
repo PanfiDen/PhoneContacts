@@ -1,10 +1,9 @@
 package com.chiacademy.phonecontacts.user.model;
 
-import com.chiacademy.phonecontacts.contact.model.Contact;
+import com.chiacademy.phonecontacts.contact.model.entity.Contact;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 import java.util.List;
 
@@ -12,6 +11,10 @@ import java.util.List;
 @Entity
 @Getter
 @Setter
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+@Table(name = "users")
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

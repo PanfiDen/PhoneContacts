@@ -1,19 +1,18 @@
-package com.chiacademy.phonecontacts.contact.model;
+package com.chiacademy.phonecontacts.contact.model.entity;
 
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.Email;
 import lombok.Getter;
 import lombok.Setter;
 
 @Entity
 @Getter
 @Setter
-public class ContactEmail {
+public class Email {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    @Email
+    @jakarta.validation.constraints.Email
     private String email;
     @ManyToOne
     private Contact contact;
