@@ -2,12 +2,10 @@ package com.chiacademy.phonecontacts.user.controller;
 
 import com.chiacademy.phonecontacts.contact.model.dto.ContactDTO;
 import com.chiacademy.phonecontacts.contact.model.entity.Contact;
+import com.chiacademy.phonecontacts.contact.model.response.DeleteResponse;
 import com.chiacademy.phonecontacts.user.service.UserService;
 import lombok.AllArgsConstructor;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @AllArgsConstructor
@@ -20,4 +18,16 @@ public class UserController {
         return userService.createContact(userId, newContact);
     }
 
+    @PatchMapping("/user/{user-id}/contact/{contact-id}")
+    public Contact editContactById(@PathVariable("user-id") Long userId,
+                                   @PathVariable("contact-id") Long contactId,
+                                   @RequestBody(required = false) ContactDTO contactToUpdate) {
+        return userService.editContactById(userId, contactId, contactToUpdate);
+    }
+
+    @DeleteMapping("/user/{user-id}/contact/{contact-id}")
+    public DeleteResponse deleteProofById(@PathVariable("user-id") Long userId,
+                                          @PathVariable("contact-id") Long contactId) {
+        return userService.deleteContactById(userId, contactId);
+    }
 }
