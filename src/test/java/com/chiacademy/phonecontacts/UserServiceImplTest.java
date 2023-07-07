@@ -43,6 +43,7 @@ class UserServiceImplTest {
                 .id(1L)
                 .email("user@example.com")
                 .build();
+
     }
 
     @Test
