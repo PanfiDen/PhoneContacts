@@ -2,10 +2,11 @@ package com.chiacademy.phonecontacts.contact.model.entity;
 
 
 import com.chiacademy.phonecontacts.user.model.User;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.util.List;
+import java.util.Set;
 
 @Entity
 @Getter
@@ -18,11 +19,11 @@ public class Contact {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String name;
-    @OneToMany
-    private List<Email> emails;
-    @OneToMany
-    private List<Phone> phones;
-
+    @ElementCollection
+    private Set<String> emails;
+    @ElementCollection
+    private Set<String> phones;
+    @JsonIgnore
     @ManyToOne
     private User user;
 }

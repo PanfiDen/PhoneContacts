@@ -5,7 +5,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import lombok.*;
 
-import java.util.List;
+import java.util.Set;
 
 
 @Entity
@@ -22,6 +22,7 @@ public class User {
     @Email
     private String email;
     private String password;
-    @OneToMany
-    private List<Contact> contacts;
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "user_id")
+    private Set<Contact> contacts;
 }

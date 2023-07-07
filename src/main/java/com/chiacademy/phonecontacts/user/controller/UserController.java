@@ -7,6 +7,8 @@ import com.chiacademy.phonecontacts.user.service.UserService;
 import lombok.AllArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Set;
+
 @RestController
 @AllArgsConstructor
 public class UserController {
@@ -26,8 +28,13 @@ public class UserController {
     }
 
     @DeleteMapping("/user/{user-id}/contact/{contact-id}")
-    public DeleteResponse deleteProofById(@PathVariable("user-id") Long userId,
+    public DeleteResponse deleteContactById(@PathVariable("user-id") Long userId,
                                           @PathVariable("contact-id") Long contactId) {
         return userService.deleteContactById(userId, contactId);
+    }
+
+    @GetMapping("/user/{user-id}/contact")
+    public Set<Contact> getAllContactByUserId(@PathVariable("user-id") Long userId){
+        return userService.getAllContactByUserId(userId);
     }
 }

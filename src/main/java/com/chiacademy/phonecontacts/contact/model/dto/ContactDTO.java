@@ -1,20 +1,20 @@
 package com.chiacademy.phonecontacts.contact.model.dto;
 
-import com.chiacademy.phonecontacts.contact.model.entity.Email;
-import com.chiacademy.phonecontacts.contact.model.entity.Phone;
+import jakarta.validation.constraints.NotEmpty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.List;
+import java.util.Set;
 
 @Builder
 @AllArgsConstructor
 @Getter
 @Setter
 public class ContactDTO {
+    @NotEmpty
     String name;
-    List<Email> emails;
-    List<Phone> phones;
+    Set<String> emails;
+    Set<String> phones;
 }
