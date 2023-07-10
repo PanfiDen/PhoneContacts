@@ -1,10 +1,13 @@
 package com.chiacademy.phonecontacts;
 
+import com.chiacademy.phonecontacts.authentication.service.AuthenticationService;
 import com.chiacademy.phonecontacts.contact.model.dto.ContactDTO;
 import com.chiacademy.phonecontacts.contact.model.entity.Contact;
 import com.chiacademy.phonecontacts.contact.model.response.DeleteResponse;
 import com.chiacademy.phonecontacts.contact.repository.ContactRepository;
+import com.chiacademy.phonecontacts.exception.exception.ContactNotFoundException;
 import com.chiacademy.phonecontacts.exception.exception.ForbiddenRequestException;
+import com.chiacademy.phonecontacts.exception.exception.UserNotFoundException;
 import com.chiacademy.phonecontacts.user.model.User;
 import com.chiacademy.phonecontacts.user.repository.UserRepository;
 import com.chiacademy.phonecontacts.user.service.impl.UserServiceImpl;
@@ -32,47 +35,55 @@ class UserServiceImplTest {
     @Mock
     private ContactRepository contactRepository;
 
+    @Mock
+    private AuthenticationService authenticationService;
+
     @InjectMocks
     private UserServiceImpl userService;
 
     private User currentUser;
+    private Contact contact;
 
     @BeforeEach
-    void setUp() {
+    public void create() {
         currentUser = User.builder()
                 .id(1L)
                 .email("user@example.com")
+                .password("secret")
                 .build();
-
+        contact = Contact.builder()
+                .id(1L)
+                .name("Test")
+                .emails(new HashSet<>(List.of("john@example.com")))
+                .phones(new HashSet<>(List.of("+1234567890")))
+                .user(currentUser)
+                .build();
+        currentUser.setContacts(new HashSet<>(List.of(contact)));
     }
 
     @Test
     void testCreateContact_ValidInput() {
         Long userId = currentUser.getId();
-        User creator = User.builder()
-                .id(userId)
-                .email("user@example.com").build();
-        when(userRepository.findById(userId)).thenReturn(Optional.of(creator));
-        when(userService.isNotCurrentUser(any(User.class))).thenReturn(false);
+        Set<String> emails = new HashSet<>(Collections.singleton("new@example.com"));
+        Set<String> phones = new HashSet<>(Collections.singleton("+0987654321"));
         ContactDTO newContact = ContactDTO.builder()
                 .name("John Doe")
-                .emails(new HashSet<>(List.of("john@example.com")))
-                .phones(new HashSet<>(List.of("+1234567890")))
+                .emails(emails)
+                .phones(phones)
                 .build();
 
-
-
-
+        when(userRepository.findById(userId)).thenReturn(Optional.of(currentUser));
+        when(authenticationService.isNotCurrentUser(any(User.class))).thenReturn(false);
         Contact result = userService.createContact(userId, newContact);
 
         assertNotNull(result);
         assertEquals(newContact.getName(), result.getName());
-        assertEquals(newContact.getEmails(), new HashSet<>(result.getEmails()));
-        assertEquals(newContact.getPhones(), new HashSet<>(result.getPhones()));
-        assertEquals(creator, result.getUser());
+        assertEquals(newContact.getEmails(), result.getEmails());
+        assertEquals(newContact.getPhones(), result.getPhones());
+        assertEquals(currentUser, result.getUser());
 
         verify(contactRepository).save(result);
-        verify(userRepository).save(creator);
+        verify(userRepository).save(currentUser);
     }
 
     @Test
@@ -85,9 +96,8 @@ class UserServiceImplTest {
                 .build();
 
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
-        when(userService.isNotCurrentUser(any(User.class))).thenThrow(ForbiddenRequestException.class);
 
-        assertThrows(ForbiddenRequestException.class, () -> userService.createContact(userId, newContact));
+        assertThrows(UserNotFoundException.class, () -> userService.createContact(userId, newContact));
 
         verify(contactRepository, never()).save(any(Contact.class));
         verify(userRepository, never()).save(any(User.class));
@@ -98,38 +108,28 @@ class UserServiceImplTest {
         Long userId = currentUser.getId();
         Long contactId = 1L;
 
-        User editor = User.builder()
-                .id(userId)
-                .email("editor@example.com")
-                .build();
-
-        Contact existingContact = Contact.builder()
-                .id(contactId)
-                .name("John Doe")
-                .emails(new HashSet<>(List.of("john@example.com")))
-                .phones(new HashSet<>(List.of("+1234567890")))
-                .user(editor)
-                .build();
-
+        Set<String> emails = new HashSet<>(List.of("updated@example.com"));
+        Set<String> phones = new HashSet<>(List.of("+918273645"));
         ContactDTO updatedContact = ContactDTO.builder()
                 .name("Updated Name")
-                .emails(new HashSet<>(List.of("updated@example.com")))
-                .phones(new HashSet<>(List.of("+9876543210")))
+                .emails(emails)
+                .phones(phones)
                 .build();
 
-        when(userRepository.findById(userId)).thenReturn(Optional.of(editor));
-        when(contactRepository.findById(contactId)).thenReturn(Optional.of(existingContact));
-        when(userService.isNotCurrentUser(editor)).thenReturn(false);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(currentUser));
+        when(contactRepository.findById(contactId)).thenReturn(Optional.of(contact));
+        when(authenticationService.isNotCurrentUser(currentUser)).thenReturn(false);
+        when(contactRepository.save(any(Contact.class))).thenReturn(any(Contact.class));
 
         Contact result = userService.editContactById(userId, contactId, updatedContact);
 
-        assertNotNull(result);
         assertEquals(updatedContact.getName(), result.getName());
         assertEquals(updatedContact.getEmails(), new HashSet<>(result.getEmails()));
         assertEquals(updatedContact.getPhones(), new HashSet<>(result.getPhones()));
-        assertEquals(editor, result.getUser());
+        assertEquals(currentUser, result.getUser());
 
         verify(contactRepository).save(result);
+        verify(userRepository).save(currentUser);
     }
 
     @Test
@@ -143,9 +143,8 @@ class UserServiceImplTest {
                 .build();
 
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
-        when(userService.isNotCurrentUser(any(User.class))).thenThrow(ForbiddenRequestException.class);
 
-        assertThrows(ForbiddenRequestException.class, () -> userService.editContactById(userId, contactId, updatedContact));
+        assertThrows(UserNotFoundException.class, () -> userService.editContactById(userId, contactId, updatedContact));
 
         verify(contactRepository, never()).save(any(Contact.class));
     }
@@ -160,16 +159,10 @@ class UserServiceImplTest {
                 .phones(new HashSet<>(List.of("+1234567890")))
                 .build();
 
-        User editor = User.builder()
-                .id(userId)
-                .email("editor@example.com")
-                .build();
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(editor));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(currentUser));
         when(contactRepository.findById(contactId)).thenReturn(Optional.empty());
-        when(userService.isNotCurrentUser(editor)).thenReturn(false);
 
-        assertThrows(ForbiddenRequestException.class, () -> userService.editContactById(userId, contactId, updatedContact));
+        assertThrows(ContactNotFoundException.class, () -> userService.editContactById(userId, contactId, updatedContact));
 
         verify(contactRepository, never()).save(any(Contact.class));
     }
@@ -184,22 +177,17 @@ class UserServiceImplTest {
                 .phones(new HashSet<>(List.of("+1234567890")))
                 .build();
 
-        User editor = User.builder()
-                .id(2L)
-                .email("anotheruser@example.com")
-                .build();
-
         Contact existingContact = Contact.builder()
                 .id(contactId)
                 .name("John Doe")
                 .emails(new HashSet<>(List.of("john@example.com")))
                 .phones(new HashSet<>(List.of("+1234567890")))
-                .user(editor)
+                .user(currentUser)
                 .build();
 
-        when(userRepository.findById(userId)).thenReturn(Optional.of(editor));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(currentUser));
         when(contactRepository.findById(contactId)).thenReturn(Optional.of(existingContact));
-        when(userService.isNotCurrentUser(editor)).thenReturn(true);
+        when(authenticationService.isNotCurrentUser(currentUser)).thenReturn(true);
 
         assertThrows(ForbiddenRequestException.class, () -> userService.editContactById(userId, contactId, updatedContact));
 
@@ -211,22 +199,8 @@ class UserServiceImplTest {
         Long userId = currentUser.getId();
         Long contactId = 1L;
 
-        User user = User.builder()
-                .id(userId)
-                .email("user@example.com")
-                .build();
-
-        Contact existingContact = Contact.builder()
-                .id(contactId)
-                .name("John Doe")
-                .emails(new HashSet<>(List.of("john@example.com")))
-                .phones(new HashSet<>(List.of("+1234567890")))
-                .user(user)
-                .build();
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(userService.isNotCurrentUser(user)).thenReturn(false);
-        when(contactRepository.findById(contactId)).thenReturn(Optional.of(existingContact));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(currentUser));
+        when(authenticationService.isNotCurrentUser(currentUser)).thenReturn(false);
 
         DeleteResponse result = userService.deleteContactById(userId, contactId);
 
@@ -243,9 +217,8 @@ class UserServiceImplTest {
         Long contactId = 1L;
 
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
-        when(userService.isNotCurrentUser(any(User.class))).thenThrow(ForbiddenRequestException.class);
 
-        assertThrows(ForbiddenRequestException.class, () -> userService.deleteContactById(userId, contactId));
+        assertThrows(UserNotFoundException.class, () -> userService.deleteContactById(userId, contactId));
 
         verify(contactRepository, never()).deleteById(contactId);
     }
@@ -255,22 +228,8 @@ class UserServiceImplTest {
         Long userId = currentUser.getId();
         Long contactId = 1L;
 
-        User user = User.builder()
-                .id(2L)
-                .email("anotheruser@example.com")
-                .build();
-
-        Contact existingContact = Contact.builder()
-                .id(contactId)
-                .name("John Doe")
-                .emails(new HashSet<>(List.of("john@example.com")))
-                .phones(new HashSet<>(List.of("+1234567890")))
-                .user(user)
-                .build();
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(userService.isNotCurrentUser(any(User.class))).thenThrow(ForbiddenRequestException.class);
-        when(contactRepository.findById(contactId)).thenReturn(Optional.of(existingContact));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(currentUser));
+        when(authenticationService.isNotCurrentUser(currentUser)).thenReturn(true);
 
         assertThrows(ForbiddenRequestException.class, () -> userService.deleteContactById(userId, contactId));
 
@@ -281,14 +240,6 @@ class UserServiceImplTest {
     void testGetAllContactByUserId_ValidInput() {
         Long userId = currentUser.getId();
 
-        Contact contact1 = Contact.builder()
-                .id(1L)
-                .name("John Doe")
-                .emails(new HashSet<>(List.of("john@example.com")))
-                .phones(new HashSet<>(List.of("+1234567890")))
-                .user(currentUser)
-                .build();
-
         Contact contact2 = Contact.builder()
                 .id(2L)
                 .name("Jane Smith")
@@ -297,7 +248,7 @@ class UserServiceImplTest {
                 .user(currentUser)
                 .build();
 
-        currentUser.setContacts(new HashSet<>(Arrays.asList(contact1, contact2)));
+        currentUser.setContacts(new HashSet<>(Arrays.asList(contact, contact2)));
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(currentUser));
 
@@ -305,7 +256,7 @@ class UserServiceImplTest {
 
         assertNotNull(result);
         assertEquals(2, result.size());
-        assertTrue(result.contains(contact1));
+        assertTrue(result.contains(contact));
         assertTrue(result.contains(contact2));
     }
 
@@ -314,8 +265,16 @@ class UserServiceImplTest {
         Long userId = currentUser.getId();
 
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
-        when(userService.isNotCurrentUser(any(User.class))).thenThrow(ForbiddenRequestException.class);
 
-        assertThrows(ForbiddenRequestException.class, () -> userService.getAllContactByUserId(userId));
+        assertThrows(UserNotFoundException.class, () -> userService.getAllContactByUserId(userId));
+    }
+
+    @Test
+    void testIsNotCurrentUser(){
+        when(authenticationService.isNotCurrentUser(currentUser)).thenThrow(ForbiddenRequestException.class);
+
+        assertThrows(ForbiddenRequestException.class, () ->{
+            authenticationService.isNotCurrentUser(currentUser);
+        });
     }
 }

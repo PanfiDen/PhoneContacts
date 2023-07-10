@@ -1,5 +1,6 @@
 package com.chiacademy.phonecontacts.user.service.impl;
 
+import com.chiacademy.phonecontacts.authentication.service.AuthenticationService;
 import com.chiacademy.phonecontacts.contact.model.dto.ContactDTO;
 import com.chiacademy.phonecontacts.contact.model.entity.Contact;
 import com.chiacademy.phonecontacts.contact.model.response.DeleteResponse;
@@ -12,7 +13,6 @@ import com.chiacademy.phonecontacts.user.model.User;
 import com.chiacademy.phonecontacts.user.repository.UserRepository;
 import com.chiacademy.phonecontacts.user.service.UserService;
 import lombok.AllArgsConstructor;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.HashSet;
@@ -24,13 +24,16 @@ import java.util.stream.Collectors;
 public class UserServiceImpl implements UserService {
     private UserRepository userRepository;
     private ContactRepository contactRepository;
+    private AuthenticationService authenticationService;
 
     @Override
     public Contact createContact(Long userId, ContactDTO newContact) {
         User creator = userRepository.findById(userId).orElseThrow(UserNotFoundException::new);
-        if(isNotCurrentUser(creator)){
+        if(authenticationService.isNotCurrentUser(creator)){
             throw new ForbiddenRequestException();
         }
+
+        hasDuplicate(newContact, creator);
 
         Contact contact = Contact.builder()
                 .name(newContact.getName())
@@ -43,7 +46,8 @@ public class UserServiceImpl implements UserService {
                 .user(creator)
                 .build();
 
-        hasDuplicate(newContact, creator);
+
+        creator.getContacts().add(contact);
 
         contactRepository.save(contact);
         userRepository.save(creator);
@@ -54,20 +58,24 @@ public class UserServiceImpl implements UserService {
     public Contact editContactById(Long userId, Long contactId, ContactDTO contactToUpdate) {
         User editor = userRepository.findById(userId).orElseThrow(UserNotFoundException::new);
         Contact contact = contactRepository.findById(contactId).orElseThrow(ContactNotFoundException::new);
-        if (isNotCurrentUser(editor)){
+        if (authenticationService.isNotCurrentUser(editor)){
             throw new ForbiddenRequestException();
         }
 
         hasDuplicate(contactToUpdate, editor);
         checkForChanges(contactToUpdate, contact);
 
-        return contactRepository.save(contact);
+        editor.getContacts().add(contact);
+
+        contactRepository.save(contact);
+        userRepository.save(editor);
+        return contact;
     }
 
     @Override
     public DeleteResponse deleteContactById(Long userId, Long contactId) {
         User user = userRepository.findById(userId).orElseThrow(UserNotFoundException::new);
-        if (isNotCurrentUser(user)){
+        if (authenticationService.isNotCurrentUser(user)){
             throw new ForbiddenRequestException();
         }
         contactRepository.deleteById(contactId);
@@ -80,10 +88,29 @@ public class UserServiceImpl implements UserService {
         return user.getContacts();
     }
 
+    private void hasDuplicate(ContactDTO contactDTO, User currentUser) {
+        if (contactDTO.getName() == null || contactDTO.getEmails() == null || contactDTO.getPhones() == null)
+            throw new BadRequestException("The fields mustn't be empty.");
 
-    public boolean isNotCurrentUser(User user) {
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        return !email.equalsIgnoreCase(user.getEmail());
+        Set<String> uniqueEmails = new HashSet<>();
+        Set<String> uniquePhones = new HashSet<>();
+
+        for (Contact userContact : currentUser.getContacts()) {
+            if (userContact.getName().equalsIgnoreCase(contactDTO.getName())) {
+                throw new BadRequestException("Name must be unique");
+            }
+
+            uniqueEmails.addAll(userContact.getEmails());
+            uniquePhones.addAll(userContact.getPhones());
+        }
+
+        if (hasCommonElement(uniqueEmails, contactDTO.getEmails())) {
+            throw new BadRequestException("Email must be unique");
+        }
+
+        if (hasCommonElement(uniquePhones, contactDTO.getPhones())) {
+            throw new BadRequestException("Phone must be unique");
+        }
     }
 
     private void checkForChanges(ContactDTO contactToUpdate, Contact contact) {
@@ -117,35 +144,6 @@ public class UserServiceImpl implements UserService {
             throw new BadRequestException("Invalid phone number format");
         }
         return true;
-    }
-
-    private void hasDuplicate(ContactDTO contactDTO, User currentUser) {
-        if (contactDTO.getName() == null || contactDTO.getEmails() == null || contactDTO.getPhones() == null)
-            throw new BadRequestException("The fields mustn't be empty.");
-
-        if (contactRepository.existsByNameEqualsIgnoreCaseAndUser(contactDTO.getName(), currentUser)){
-            throw new BadRequestException("Name must be unique");
-        }
-
-        Set<String> uniqueEmails = new HashSet<>();
-        Set<String> uniquePhones = new HashSet<>();
-
-        for (Contact userContact : currentUser.getContacts()) {
-            if (userContact.getName().equalsIgnoreCase(contactDTO.getName())) {
-                throw new BadRequestException("Name must be unique");
-            }
-
-            uniqueEmails.addAll(userContact.getEmails());
-            uniquePhones.addAll(userContact.getPhones());
-        }
-
-        if (hasCommonElement(uniqueEmails, contactDTO.getEmails())) {
-            throw new BadRequestException("Email must be unique");
-        }
-
-        if (hasCommonElement(uniquePhones, contactDTO.getPhones())) {
-            throw new BadRequestException("Phone must be unique");
-        }
     }
 
     private boolean hasCommonElement(Set<String> set1, Set<String> list2) {

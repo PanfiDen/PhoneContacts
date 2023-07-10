@@ -8,6 +8,7 @@ import com.chiacademy.phonecontacts.user.model.User;
 import com.chiacademy.phonecontacts.user.repository.UserRepository;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
@@ -61,5 +62,10 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .build();
 
         return jwtEncoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();
+    }
+
+    public boolean isNotCurrentUser(User user) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return !email.equalsIgnoreCase(user.getEmail());
     }
 }
