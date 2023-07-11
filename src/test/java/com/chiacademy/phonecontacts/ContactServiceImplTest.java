@@ -10,7 +10,7 @@ import com.chiacademy.phonecontacts.exception.exception.ForbiddenRequestExceptio
 import com.chiacademy.phonecontacts.exception.exception.UserNotFoundException;
 import com.chiacademy.phonecontacts.user.model.User;
 import com.chiacademy.phonecontacts.user.repository.UserRepository;
-import com.chiacademy.phonecontacts.user.service.impl.UserServiceImpl;
+import com.chiacademy.phonecontacts.contact.service.impl.ContactServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,7 +27,7 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @AutoConfigureMockMvc(addFilters = false)
-class UserServiceImplTest {
+class ContactServiceImplTest {
 
     @Mock
     private UserRepository userRepository;
@@ -39,7 +39,7 @@ class UserServiceImplTest {
     private AuthenticationService authenticationService;
 
     @InjectMocks
-    private UserServiceImpl userService;
+    private ContactServiceImpl userService;
 
     private User currentUser;
     private Contact contact;
@@ -273,8 +273,6 @@ class UserServiceImplTest {
     void testIsNotCurrentUser(){
         when(authenticationService.isNotCurrentUser(currentUser)).thenThrow(ForbiddenRequestException.class);
 
-        assertThrows(ForbiddenRequestException.class, () ->{
-            authenticationService.isNotCurrentUser(currentUser);
-        });
+        assertThrows(ForbiddenRequestException.class, () -> authenticationService.isNotCurrentUser(currentUser));
     }
 }

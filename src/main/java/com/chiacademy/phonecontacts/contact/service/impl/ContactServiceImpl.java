@@ -1,17 +1,17 @@
-package com.chiacademy.phonecontacts.user.service.impl;
+package com.chiacademy.phonecontacts.contact.service.impl;
 
 import com.chiacademy.phonecontacts.authentication.service.AuthenticationService;
 import com.chiacademy.phonecontacts.contact.model.dto.ContactDTO;
 import com.chiacademy.phonecontacts.contact.model.entity.Contact;
 import com.chiacademy.phonecontacts.contact.model.response.DeleteResponse;
 import com.chiacademy.phonecontacts.contact.repository.ContactRepository;
+import com.chiacademy.phonecontacts.contact.service.ContactService;
 import com.chiacademy.phonecontacts.exception.exception.BadRequestException;
 import com.chiacademy.phonecontacts.exception.exception.ContactNotFoundException;
 import com.chiacademy.phonecontacts.exception.exception.ForbiddenRequestException;
 import com.chiacademy.phonecontacts.exception.exception.UserNotFoundException;
 import com.chiacademy.phonecontacts.user.model.User;
 import com.chiacademy.phonecontacts.user.repository.UserRepository;
-import com.chiacademy.phonecontacts.user.service.UserService;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
 
 @Service
 @AllArgsConstructor
-public class UserServiceImpl implements UserService {
+public class ContactServiceImpl implements ContactService {
     private UserRepository userRepository;
     private ContactRepository contactRepository;
     private AuthenticationService authenticationService;
@@ -140,7 +140,7 @@ public class UserServiceImpl implements UserService {
     }
 
     private boolean isValidPhone(String phoneNumber) {
-        if (!phoneNumber.matches("^\\+?[0-9]{1,3}-?[0-9]{6,14}$")) {
+        if (!phoneNumber.matches("^\\+?\\d{1,3}-?\\d{6,14}$")) {
             throw new BadRequestException("Invalid phone number format");
         }
         return true;
